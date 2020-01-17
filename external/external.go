@@ -64,8 +64,30 @@ func (e *External) GetConfig(name string) (string, error) {
 	return e.readValue()
 }
 
+func (e *External) GetCreds(name string) (string, string, error) {
+	fmt.Fprintf(e.out, "GETCREDS %s\n", filterNewlines(name))
+
+	line, err := e.in.ReadString('\n')
+	if err != nil {
+		return "", "", err
+	}
+	line = strings.TrimSuffix(line, "\n")
+
+	creds := strings.SplitN(line, " ", 3)
+	if len(creds) != 3 || creds[0] != "CREDS" {
+		return "", "", errors.New("protocol error: expected CREDS")
+	}
+
+	return creds[1], creds[2], nil
+}
+
 func (e *External) SetConfig(name, value string) error {
 	fmt.Fprintf(e.out, "SETCONFIG %s %s\n", filterNewlines(name), filterNewlines(value))
+	return nil
+}
+
+func (e *External) SetCreds(name, user, password string) error {
+	fmt.Fprintf(e.out, "SETCREDS %s %s %s\n", filterNewlines(name), filterNewlines(user), filterNewlines(password))
 	return nil
 }
 
