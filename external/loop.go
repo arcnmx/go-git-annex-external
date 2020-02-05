@@ -160,24 +160,25 @@ func (e *External) loop() (err error) {
 				return errors.New("less than 4 fields in TRANSFER")
 			}
 
+			file := strings.Join(fields[3:], " ")
 			switch fields[1] {
 			case "STORE":
-				e.store(fields[2], fields[3])
+				e.store(fields[2], file)
 			case "RETRIEVE":
-				e.retrieve(fields[2], fields[3])
+				e.retrieve(fields[2], file)
 			default:
 				fmt.Fprintf(e.out, "UNSUPPORTED-REQUEST\n")
 			}
 
 		case "CHECKPRESENT":
-			if len(fields) < 2 {
+			if len(fields) != 2 {
 				return errors.New("less than 2 fields in CHECKPRESENT")
 			}
 
 			e.checkPresent(fields[1])
 
 		case "REMOVE":
-			if len(fields) < 2 {
+			if len(fields) != 2 {
 				return errors.New("less than 2 fields in REMOVE")
 			}
 
@@ -190,7 +191,7 @@ func (e *External) loop() (err error) {
 			e.getAvailability()
 
 		case "WHEREIS":
-			if len(fields) < 2 {
+			if len(fields) != 2 {
 				return errors.New("less than 2 fields in WHEREIS")
 			}
 
