@@ -240,6 +240,18 @@ func (e *External) extensionsRequest(extensions []string) {
 	fmt.Fprintf(e.out, "EXTENSIONS %s\n", strings.Join(protocolExtensions, " "))
 }
 
+func (e *External) unhandled(request string, fields string) {
+	err := e.h.Unhandled(e, request, fields)
+	if err == ErrUnsupportedRequest {
+		fmt.Fprintf(e.out, "UNSUPPORTED-REQUEST\n")
+		return
+	}
+	if err != nil {
+		e.Error(err.Error())
+		return
+	}
+}
+
 func (e *External) loop() (err error) {
 	defer func() {
 		if err != nil && !e.hasErrored {
@@ -333,7 +345,7 @@ func (e *External) loop() (err error) {
 			return errors.New(strings.Join(fields[1:], " "))
 
 		default:
-			fmt.Fprintf(e.out, "UNSUPPORTED-REQUEST\n")
+			e.unhandled(fields[0], strings.Join(fields[1:], " "))
 		}
 	}
 }

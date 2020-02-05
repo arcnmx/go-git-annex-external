@@ -57,11 +57,17 @@ type ExternalHandler interface {
 	ClaimUrl(e *External, url string) (bool, error)
 	CheckUrl(e *External, url string) ([]CheckUrl, error)
 	GetInfo(e *External) ([]Info, error)
+
+	// Can respond with an empty list or ErrUnsupportedRequest; at the time of
+	// writing no outgoing extensions have been defined yet.
 	Extensions(e *External, extensions []string) ([]string, error)
 
 	// If WhereIs returns an empty string with a nil error, then External will
 	// indicate to git-annex that no location is known for that key.
 	WhereIs(e *External, key string) (string, error)
+
+	// This should always return ErrUnsupportedRequest
+	Unhandled(e *External, request string, fields string) error
 }
 
 type External struct {
@@ -213,6 +219,10 @@ func (e *External) Info(message string) {
 func (e *External) Error(message string) {
 	fmt.Fprintf(e.out, "ERROR %s\n", filterNewlines(message))
 	e.hasErrored = true
+}
+
+func (e *External) Writer() io.Writer {
+	return e.out
 }
 
 func (e *External) readValue() (string, error) {
