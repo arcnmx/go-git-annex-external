@@ -57,6 +57,7 @@ type ExternalHandler interface {
 	ClaimUrl(e *External, url string) (bool, error)
 	CheckUrl(e *External, url string) ([]CheckUrl, error)
 	GetInfo(e *External) ([]Info, error)
+	Extensions(e *External, extensions []string) ([]string, error)
 
 	// If WhereIs returns an empty string with a nil error, then External will
 	// indicate to git-annex that no location is known for that key.
@@ -68,6 +69,7 @@ type External struct {
 	out        io.Writer
 	h          ExternalHandler
 	hasErrored bool
+	extensions map[string] struct{}
 }
 
 func RunLoop(in io.Reader, out io.Writer, h ExternalHandler) error {
@@ -77,6 +79,11 @@ func RunLoop(in io.Reader, out io.Writer, h ExternalHandler) error {
 		h:   h,
 	}
 	return e.loop()
+}
+
+func (e *External) HasExtension(name string) bool {
+	_, ok := e.extensions[name]
+	return ok
 }
 
 func (e *External) GetConfig(name string) (string, error) {
@@ -120,6 +127,11 @@ func (e *External) DirHash(key string) (string, error) {
 	return e.readValue()
 }
 
+func (e *External) DirHashLower(key string) (string, error) {
+	fmt.Fprintf(e.out, "DIRHASH-LOWER %s\n", filterNewlines(key))
+	return e.readValue()
+}
+
 func (e *External) GetUUID() (string, error) {
 	fmt.Fprintf(e.out, "GETUUID\n")
 	return e.readValue()
@@ -130,9 +142,19 @@ func (e *External) GetGitDir() (string, error) {
 	return e.readValue()
 }
 
+func (e *External) SetWanted(key, preferredContentExpression string) error {
+	fmt.Fprintf(e.out, "SETWANTED %s\n", filterNewlines(preferredContentExpression))
+	return nil
+}
+
 func (e *External) SetState(key, value string) error {
 	fmt.Fprintf(e.out, "SETSTATE %s %s\n", filterNewlines(key), filterNewlines(value))
 	return nil
+}
+
+func (e *External) GetWanted(key string) (string, error) {
+	fmt.Fprintf(e.out, "GETWANTED %s\n", filterNewlines(key))
+	return e.readValue()
 }
 
 func (e *External) GetState(key string) (string, error) {
@@ -180,6 +202,12 @@ func (e *External) GetURLs(key, prefix string) ([]string, error) {
 
 func (e *External) Debug(message string) {
 	fmt.Fprintf(e.out, "DEBUG %s\n", filterNewlines(message))
+}
+
+func (e *External) Info(message string) {
+	if e.HasExtension("INFO") {
+		fmt.Fprintf(e.out, "INFO %s\n", filterNewlines(message))
+	}
 }
 
 func (e *External) Error(message string) {

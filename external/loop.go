@@ -221,6 +221,25 @@ func (e *External) whereIs(key string) {
 	}
 }
 
+func (e *External) extensionsRequest(extensions []string) {
+	e.extensions = make(map[string]struct{})
+	for _, extension := range extensions {
+		e.extensions[extension] = struct{} { }
+	}
+
+	protocolExtensions, err := e.h.Extensions(e, extensions)
+	if err == ErrUnsupportedRequest {
+		fmt.Fprintf(e.out, "UNSUPPORTED-REQUEST\n")
+		return
+	}
+	if err != nil {
+		e.Error(err.Error())
+		return
+	}
+
+	fmt.Fprintf(e.out, "EXTENSIONS %s\n", strings.Join(protocolExtensions, " "))
+}
+
 func (e *External) loop() (err error) {
 	defer func() {
 		if err != nil && !e.hasErrored {
@@ -299,6 +318,8 @@ func (e *External) loop() (err error) {
 		case "GETINFO":
 			e.getInfo()
 
+		case "EXTENSIONS":
+			e.extensionsRequest(fields[1:])
 
 		case "WHEREIS":
 			if len(fields) != 2 {
