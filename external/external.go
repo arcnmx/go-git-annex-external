@@ -17,6 +17,22 @@ const (
 	AvailabilityLocal
 )
 
+type Config struct {
+	Name string
+	Description string
+}
+
+type Info struct {
+	Name string
+	Value string
+}
+
+type CheckUrl struct {
+	Size *uint64
+	Filename string
+	Url string
+}
+
 type ExternalHandler interface {
 	// InitRemote, Prepare, Store, Retrieve, CheckPresent, and Remove must be
 	// implemented.
@@ -37,6 +53,10 @@ type ExternalHandler interface {
 
 	GetCost(e *External) (cost int, err error)
 	GetAvailability(e *External) (Availability, error)
+	ListConfigs(e *External) ([]Config, error)
+	ClaimUrl(e *External, url string) (bool, error)
+	CheckUrl(e *External, url string) ([]CheckUrl, error)
+	GetInfo(e *External) ([]Info, error)
 
 	// If WhereIs returns an empty string with a nil error, then External will
 	// indicate to git-annex that no location is known for that key.

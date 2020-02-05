@@ -106,6 +106,103 @@ func (e *External) getAvailability() {
 	}
 }
 
+func (e *External) listConfigs() {
+	configs, err := e.h.ListConfigs(e)
+	if err == ErrUnsupportedRequest {
+		fmt.Fprintf(e.out, "UNSUPPORTED-REQUEST\n")
+		return
+	}
+	if err != nil {
+		e.Error(err.Error())
+		return
+	}
+
+	for _, config := range configs {
+		fmt.Fprintf(e.out, "CONFIG %s %s\n", filterNewlines(config.Name), filterNewlines(config.Description))
+	}
+	fmt.Fprintf(e.out, "CONFIGEND\n")
+}
+
+func (e *External) claimUrl(url string) {
+	claimed, err := e.h.ClaimUrl(e, url)
+	if err == ErrUnsupportedRequest {
+		fmt.Fprintf(e.out, "UNSUPPORTED-REQUEST\n")
+		return
+	}
+	if err != nil {
+		e.Error(err.Error())
+		return
+	}
+
+	if claimed {
+		fmt.Fprintf(e.out, "CLAIMURL-SUCCESS\n")
+	} else {
+		fmt.Fprintf(e.out, "CLAIMURL-FAILURE\n")
+	}
+}
+
+func encodeCheckUrl(url CheckUrl) string {
+	var rest string
+	if url.Size == nil {
+		rest = fmt.Sprintf("UNKNOWN %s", filterNewlines(url.Filename))
+	} else {
+		rest = fmt.Sprintf("%d %s", url.Size, filterNewlines(url.Filename))
+	}
+
+	if url.Url != "" {
+		return fmt.Sprintf("%s %s", filterNewlines(url.Url), rest)
+	} else {
+		return rest
+	}
+}
+
+func (e *External) checkUrl(url string) {
+	urls, err := e.h.CheckUrl(e, url)
+	if err == ErrUnsupportedRequest {
+		fmt.Fprintf(e.out, "UNSUPPORTED-REQUEST\n")
+		return
+	}
+	if err != nil {
+		e.Error(err.Error())
+		return
+	}
+
+	switch len(urls) {
+	case 0:
+		fmt.Fprintf(e.out, "CHECKURL-FAILURE\n")
+	case 1:
+		item := urls[0]
+		// NOTE: expectation here is that the returned url is either empty or matches the requested url?
+		fmt.Fprintf(e.out, "CHECKURL-CONTENTS %s\n", encodeCheckUrl(CheckUrl {
+			Filename: item.Filename,
+			Size: item.Size,
+		}))
+	default:
+		fmt.Fprintf(e.out, "CHECKURL-MULTI")
+		for _, item := range urls {
+			fmt.Fprintf(e.out, " %s", encodeCheckUrl(item))
+		}
+		fmt.Fprintf(e.out, "\n")
+	}
+}
+
+func (e *External) getInfo() {
+	info, err := e.h.GetInfo(e)
+	if err == ErrUnsupportedRequest {
+		fmt.Fprintf(e.out, "UNSUPPORTED-REQUEST\n")
+		return
+	}
+	if err != nil {
+		e.Error(err.Error())
+		return
+	}
+
+	for _, info := range info {
+		fmt.Fprintf(e.out, "INFOFIELD %s\nINFOVALUE %s\n", filterNewlines(info.Name), filterNewlines(info.Value))
+	}
+	fmt.Fprintf(e.out, "INFOEND\n")
+}
+
 func (e *External) whereIs(key string) {
 	where, err := e.h.WhereIs(e, key)
 	if err == ErrUnsupportedRequest {
@@ -189,6 +286,19 @@ func (e *External) loop() (err error) {
 
 		case "GETAVAILABILITY":
 			e.getAvailability()
+
+		case "LISTCONFIGS":
+			e.listConfigs()
+
+		case "CLAIMURL":
+			e.claimUrl(fields[1])
+
+		case "CHECKURL":
+			e.checkUrl(fields[1])
+
+		case "GETINFO":
+			e.getInfo()
+
 
 		case "WHEREIS":
 			if len(fields) != 2 {
